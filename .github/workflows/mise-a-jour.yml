@@ -9,7 +9,7 @@ on:
     paths: ["site/**", "scripts/**", "config.json", ".github/workflows/**"]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -55,6 +55,14 @@ jobs:
           name: donnees
           path: site/data
           retention-days: 7
+
+      - name: Sauvegarde des données (branche data)
+        continue-on-error: true
+        run: |
+          cd site/data
+          git init -q && git checkout -q -b data && git add -A
+          git -c user.name=robot -c user.email=robot@users.noreply.github.com commit -qm "Données $(date -u +%F)"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" data
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
