@@ -433,6 +433,9 @@ def type_bat(txt):
     return "Autre"
 
 
+DEP_NOMS = {}
+
+
 def localise(rec, info):
     deps = [str(x) for x in as_list(rec.get("code_departement")) if x]
     for cp in info["cps"]:
@@ -443,9 +446,13 @@ def localise(rec, info):
     # commune citée dans l'objet ou le nom de l'acheteur
     txt = f" {norm(rec.get('objet'))} {norm(rec.get('nomacheteur'))} "
     best = None
-    for dep in deps:
+    if not DEP_NOMS:
         for (d, n), code in NOM2COM.items():
-            if d == dep and len(n) >= 4 and f" {n} " in txt and (best is None or len(n) > len(best[0])):
+            if len(n) >= 4:
+                DEP_NOMS.setdefault(d, []).append((n, code))
+    for dep in deps:
+        for n, code in DEP_NOMS.get(dep, []):
+            if f" {n} " in txt and (best is None or len(n) > len(best[0])):
                 best = (n, code)
     if best:
         return COMMUNES[best[1]], False
