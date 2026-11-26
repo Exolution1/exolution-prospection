@@ -440,6 +440,15 @@ def localise(rec, info):
             c = COMMUNES.get(code)
             if c and (not deps or c["dep"] in deps):
                 return c, False
+    # commune citée dans l'objet ou le nom de l'acheteur
+    txt = f" {norm(rec.get('objet'))} {norm(rec.get('nomacheteur'))} "
+    best = None
+    for dep in deps:
+        for (d, n), code in NOM2COM.items():
+            if d == dep and len(n) >= 4 and f" {n} " in txt and (best is None or len(n) > len(best[0])):
+                best = (n, code)
+    if best:
+        return COMMUNES[best[1]], False
     if deps and deps[0] in DEP_CENTRE:
         la, lo = DEP_CENTRE[deps[0]]
         return {"nom": f"Département {deps[0]}", "dep": deps[0], "lat": la, "lon": lo}, True
