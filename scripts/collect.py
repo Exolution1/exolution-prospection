@@ -33,7 +33,7 @@ CFG = json.load(open(os.path.join(ROOT, "config.json"), encoding="utf-8"))
 TODAY = dt.date.today()
 S = requests.Session()
 S.headers["User-Agent"] = "exolution-prospection/1.0 (veille open data)"
-META = {"genere_le": dt.datetime.utcnow().isoformat() + "Z", "sources": {}, "erreurs": []}
+META = {"genere_le": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"), "sources": {}, "erreurs": []}
 
 csv.field_size_limit(sys.maxsize)
 
@@ -158,6 +158,13 @@ ENT = json.load(open(ENT_CACHE_F, encoding="utf-8")) if os.path.exists(ENT_CACHE
 ENT_BUDGET = [CFG["max_enrichissements_par_run"]]
 
 
+def ffloat(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def ent_from_result(x):
     siege = x.get("siege") or {}
     dir_ = []
@@ -174,8 +181,8 @@ def ent_from_result(x):
         "effectif": x.get("tranche_effectif_salarie"),
         "adresse": siege.get("adresse"),
         "commune": siege.get("libelle_commune"),
-        "lat": float(siege["latitude"]) if siege.get("latitude") else None,
-        "lon": float(siege["longitude"]) if siege.get("longitude") else None,
+        "lat": ffloat(siege.get("latitude")),
+        "lon": ffloat(siege.get("longitude")),
         "dirigeants": dir_[:6],
         "actif": x.get("etat_administratif") == "A",
         "maj": TODAY.isoformat(),
@@ -267,7 +274,7 @@ def load_maires():
     c_code = col("code", "commune") or col("code", "collectivite")
     c_nom = col("nom", "elu") or col("nom", excl=("commune", "naissance", "departement", "collectivite"))
     c_pre = col("prenom")
-    c_fonc = col("fonction")
+    c_fonc = col("libelle", "fonction")
     for row in rd:
         code = (row.get(c_code) or "").strip()
         if not code:
@@ -550,17 +557,39 @@ SITADEL_DS = "689c42fa521ccf80ce954f83"
 PERMIS, RECUR_MO = [], {}
 
 
+def dido_params(url):
+    """L'API DiDo demande des paramètres (noms de colonnes, millésime)."""
+    base = {"withColumnName": "true", "withColumnDescription": "false", "withColumnUnit": "false"}
+    tries = [base]
+    m = re.search(r"/datafiles/([0-9a-f-]{36})", url)
+    if m:
+        try:
+            meta = get(f"https://data.statistiques.developpement-durable.gouv.fr/dido/api/v1/datafiles/{m.group(1)}").json()
+            mils = meta.get("millesimes") or []
+            log("  millésimes :", [x.get("millesime") for x in mils][-3:])
+            if mils:
+                last = sorted(mils, key=lambda x: str(x.get("millesime")))[-1].get("millesime")
+                tries.insert(0, dict(base, millesime=last))
+        except Exception as e:
+            log("  métadonnées DiDo indisponibles :", e)
+    return tries + [{}]
+
+
 def download(url, dest):
     if os.path.exists(dest) and os.path.getsize(dest) > 1000:
         return dest
-    log("  téléchargement", url)
-    with get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(dest, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-    log(f"  {os.path.getsize(dest) / 1e6:.0f} Mo")
-    return dest
+    for params in dido_params(url):
+        log("  téléchargement", url, params)
+        with get(url, params=params, stream=True, timeout=900) as r:
+            if not r.ok:
+                log("  refus", r.status_code, r.text[:400])
+                continue
+            with open(dest, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+        log(f"  {os.path.getsize(dest) / 1e6:.0f} Mo")
+        return dest
+    raise RuntimeError("téléchargement Sitadel refusé pour tous les paramètres essayés")
 
 
 def open_text(path):

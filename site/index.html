@@ -1,1 +1,300 @@
-<!DOCTYPE html><meta charset="utf-8"><title>Exolution prospection</title><p>Application en cours de construction.</p>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Exolution · Prospection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: outil de travail du soir, net et calme, comme un carnet de chantier bien tenu.
+   IDEA: le panneau de chantier — fiche projet avec maître d'ouvrage, montant, distance.
+   PICTURE: la liste de fiches elle-même, en haut, sous un titre modeste.
+   COLOUR and TYPE: blanc, encre graphite, bleu plan #1f4fd1, orange signalisation #f26b1d ; Archivo + Source Sans 3.
+   LAYOUT: barre d'onglets collante, filtres repliables, fiches pleine largeur sur mobile, 2 colonnes au-delà de 1000px. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#111418);--card:light-dark(#ffffff,#1a1e24);--ink:light-dark(#1b1f24,#e9ecef);--mute:light-dark(#5d6670,#9aa4ae);--line:light-dark(#e3e6ea,#2b3139);--blue:light-dark(#1f4fd1,#7d9bff);--orange:#f26b1d;--soft:light-dark(#f2f4f7,#20252c);--ok:light-dark(#0b7a4b,#4fd39a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.tab,.btn,.num{font-family:Archivo,system-ui,sans-serif}
+header{padding:20px max(4vw,16px) 8px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;border-bottom:4px solid var(--orange)}
+h1{font-size:clamp(24px,5vw,34px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em}
+h1 span{color:var(--blue)}
+.maj{color:var(--mute);font-size:14px}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;overflow-x:auto;padding:0 max(4vw,8px)}
+.tab{flex:none;border:0;background:none;color:var(--mute);font-size:15px;font-weight:700;padding:14px 12px;min-height:48px;cursor:pointer;border-bottom:3px solid transparent}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--blue)}
+.tab small{font-weight:500;margin-left:4px}
+main{padding:12px max(4vw,16px) 60px;max-width:1240px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input[type=search],select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+input[type=search]{flex:1 1 220px}
+.btn{font-size:14px;font-weight:700;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 14px;min-height:44px;cursor:pointer}
+.btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+#filtres{display:none;background:var(--soft);border-radius:14px;padding:14px;margin-bottom:12px;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+#filtres.open{display:grid}
+fieldset{border:0;margin:0;padding:0}
+legend{font-weight:600;font-size:14px;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 12px;min-height:38px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.range{display:flex;align-items:center;gap:10px}.range input{flex:1;accent-color:var(--blue);min-height:36px}
+.range output{font-weight:700;white-space:nowrap;min-width:70px;text-align:right}
+.count{color:var(--mute);font-size:14px;margin:4px 0 10px}
+.list{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px 10px;border-left:5px solid var(--line)}
+.card.s-interessant{border-left-color:var(--orange)}.card.s-contacte{border-left-color:var(--ok)}.card.s-ecarte{opacity:.55}
+.card h3{font-size:17px;line-height:1.25;margin:0 0 4px;font-weight:700}
+.who{color:var(--blue);font-weight:600;font-size:15px}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:var(--mute);margin:6px 0}
+.meta b{color:var(--ink);font-weight:600;white-space:nowrap}
+.tag{display:inline-block;font-size:12.5px;font-weight:600;border-radius:6px;padding:2px 8px;background:var(--soft);color:var(--ink);margin:2px 4px 2px 0}
+.tag.hot{background:var(--orange);color:#fff}.tag.blue{background:var(--blue);color:#fff}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.st{font:inherit;font-size:13px;border:1px solid var(--line);background:none;color:var(--mute);border-radius:8px;padding:6px 10px;min-height:36px;cursor:pointer}
+.st[aria-pressed=true]{color:var(--ink);border-color:var(--ink);font-weight:600}
+details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue);min-height:32px;display:flex;align-items:center}
+.ppl{list-style:none;padding:0;margin:6px 0}.ppl li{padding:4px 0;border-bottom:1px solid var(--line);font-size:15px}
+.ppl li span{color:var(--mute);font-size:13.5px}
+.links a{color:var(--blue);font-size:14px;margin-right:14px;display:inline-block;padding:4px 0}
+textarea{width:100%;min-height:60px;margin-top:6px}
+.empty{padding:40px 10px;text-align:center;color:var(--mute)}
+.more{display:block;margin:16px auto}[hidden]{display:none!important}
+.note{font-size:13px;color:var(--mute);margin-top:30px;border-top:1px solid var(--line);padding-top:12px}
+.warn{background:light-dark(#fff3e8,#2c2016);border-left:4px solid var(--orange);padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:10px}
+.sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.big{font-family:Archivo;font-weight:800;font-size:22px;color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Prospection <span>Exolution</span></h1>
+  <div class="maj" id="maj">Chargement…</div>
+</header>
+<nav role="tablist" id="tabs">
+  <button class="tab" role="tab" data-v="marches" aria-selected="true">Marchés publics<small id="n-marches"></small></button>
+  <button class="tab" role="tab" data-v="permis" aria-selected="false">Permis<small id="n-permis"></small></button>
+  <button class="tab" role="tab" data-v="recurrents" aria-selected="false">Clients récurrents</button>
+  <button class="tab" role="tab" data-v="architectes" aria-selected="false">Architectes<small id="n-architectes"></small></button>
+  <button class="tab" role="tab" data-v="suivi" aria-selected="false">Mon suivi<small id="n-suivi"></small></button>
+</nav>
+<main>
+  <div id="warn"></div>
+  <div class="sub" id="sub"></div>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Rechercher (nom, commune, objet…)" aria-label="Rechercher">
+    <button class="btn" id="bf" aria-expanded="false">Filtres</button>
+    <select id="tri" aria-label="Trier">
+      <option value="pert">Tri : pertinence</option>
+      <option value="dist">Tri : distance</option>
+      <option value="mont">Tri : montant</option>
+      <option value="date">Tri : plus récents</option>
+    </select>
+    <button class="btn" id="copy">Copier la liste</button>
+  </div>
+  <div id="filtres"></div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+  <button class="btn more" id="more" hidden>Afficher plus</button>
+  <p class="note">Sources publiques : BOAMP (DILA), permis de construire Sitadel (SDES), annuaire des entreprises (INSEE / INPI), Répertoire national des élus. Les montants des permis sont <b>estimés</b> à partir de la surface. Ton suivi et tes notes sont enregistrés sur cet appareil uniquement. Données mises à jour chaque nuit.</p>
+</main>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=v=>v==null?'montant inconnu':v>=1e6?(v/1e6).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€':Math.round(v/1e3).toLocaleString('fr-FR')+' k€';
+const fdate=d=>d?new Date(d+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';
+const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let D={marches:[],permis:[],recurrents:{maitres_ouvrage:[],titulaires:[],acheteurs:[]},architectes:[],entreprises:{},meta:{}};
+let view=location.hash.slice(1)||'marches', sub='mo', shown=40;
+const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{});
+const F=Object.assign({dist:1000,mmin:0,mmax:0,types:[],etapes:[],missions:[],travaux:'',ouverts:false,ecartes:false},store.get('exo-filtres',{}));
+const STATUTS=[['interessant','Intéressant'],['contacte','Contacté'],['ecarte','Écarté']];
+const MONTANTS=[[0,'Tous'],[500e3,'500 k€'],[1e6,'1 M€'],[2e6,'2 M€'],[4e6,'4 M€']];
+
+async function load(){
+  const g=async n=>{try{const r=await fetch('data/'+n+'.json',{cache:'no-cache'});return r.ok?r.json():null}catch(e){return null}};
+  const [m,p,r,a,e,meta]=await Promise.all(['marches','permis','recurrents','architectes','entreprises','meta'].map(g));
+  D={marches:m||[],permis:p||[],recurrents:r||D.recurrents,architectes:a||[],entreprises:e||{},meta:meta||{}};
+  const t=D.meta.genere_le?new Date(D.meta.genere_le):null;
+  $('#maj').textContent=t?'Mis à jour le '+t.toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'}):'Première collecte en cours : reviens dans une heure.';
+  if(D.meta.erreurs?.length) $('#warn').innerHTML='<div class="warn">Certaines sources n\'ont pas pu être mises à jour cette nuit : '+esc(D.meta.erreurs.slice(0,3).join(' · '))+'</div>';
+  render();
+}
+
+const ent=s=>D.entreprises[s]||null;
+function people(e){
+  if(!e||!e.dirigeants?.length) return '<li><span>Dirigeants non publiés</span></li>';
+  return e.dirigeants.map(d=>'<li>'+esc(d.nom)+' <span>· '+esc(d.qualite||'dirigeant')+'</span></li>').join('');
+}
+function entLinks(e,s){
+  if(!s) return '';
+  return '<a href="https://annuaire-entreprises.data.gouv.fr/entreprise/'+esc(s)+'" target="_blank" rel="noopener">Fiche officielle</a>'+
+    '<a href="https://www.google.com/search?q='+encodeURIComponent((e?.nom||'')+' '+(e?.commune||''))+'" target="_blank" rel="noopener">Site / téléphone</a>';
+}
+function entBlock(s,label){
+  const e=ent(s);
+  return '<div><b>'+esc(label)+' : '+esc(e?.nom||s||'')+'</b>'+(e?.adresse?'<div class="meta">'+esc(e.adresse)+'</div>':'')+
+    '<ul class="ppl">'+people(e)+'</ul><div class="links">'+entLinks(e,s)+'</div></div>';
+}
+function statusBar(id){
+  const cur=ST[id]||'';
+  return '<div class="acts">'+STATUTS.map(([k,l])=>'<button class="st" data-id="'+esc(id)+'" data-s="'+k+'" aria-pressed="'+(cur===k)+'">'+l+'</button>').join('')+'</div>';
+}
+function noteBox(id){return '<label class="meta" for="n-'+esc(id)+'">Ma note</label><textarea id="n-'+esc(id)+'" data-note="'+esc(id)+'">'+esc(NOTES[id]||'')+'</textarea>'}
+
+function cardMarche(m){
+  const tags=m.missions.map(x=>'<span class="tag'+(x==='Maîtrise d\'œuvre'?' blue':'')+'">'+esc(x)+'</span>').join('')+
+    (m.ouvert?'<span class="tag hot">Ouvert jusqu\'au '+esc(fdate(m.limite))+'</span>':'<span class="tag">Clos</span>');
+  const conseil=m.missions.includes("Maîtrise d'œuvre")&&!m.missions.some(x=>['AMO','OPC','Économie'].includes(x))
+    ?'<div class="meta">Les architectes candidats montent leur équipe maintenant : propose-leur l\'économie / l\'OPC.</div>':'';
+  return '<article class="card s-'+(ST[m.id]||'')+'"><div>'+tags+'</div><h3>'+esc(m.objet)+'</h3><div class="who">'+esc(m.acheteur)+'</div>'+
+    '<div class="meta"><b>'+(m.distance!=null?(m.distance_approx?'≈ ':'')+Math.round(m.distance)+' km':'')+'</b><span>'+esc(m.lieu||'')+'</span><b>'+eur(m.montant)+'</b><span>'+esc(m.etape)+'</span><span>Publié le '+esc(fdate(m.parution))+'</span></div>'+conseil+
+    '<details><summary>Personnes et liens</summary><ul class="ppl">'+
+    (m.decideur?'<li>'+esc(m.decideur.nom)+' <span>· '+esc(m.decideur.qualite)+'</span></li>':'')+
+    (m.contact?'<li><span>Contact indiqué dans l\'avis :</span> '+esc(m.contact)+'</li>':'')+
+    (!m.decideur&&!m.contact?'<li><span>Voir l\'avis pour le contact de la consultation</span></li>':'')+'</ul>'+
+    '<div class="links">'+(String(m.url||'').startsWith('https://')?'<a href="'+esc(m.url)+'" target="_blank" rel="noopener">Voir l\'avis BOAMP</a>':'')+'</div>'+noteBox(m.id)+'</details>'+statusBar(m.id)+'</article>';
+}
+function cardPermis(p){
+  const e=ent(p.siren);
+  const rec=p.mo_permis_zone>=2?'<span class="tag hot">'+p.mo_permis_zone+' permis dans ta zone en 5 ans</span>':'';
+  return '<article class="card s-'+(ST[p.id]||'')+'"><div><span class="tag blue">'+esc(p.type)+'</span><span class="tag">'+(p.rehab?'Réhabilitation':'Neuf')+'</span>'+rec+'</div>'+
+    '<h3>'+esc(e?.nom||p.mo||'Maître d\'ouvrage')+'</h3><div class="who">'+esc([p.adresse,p.lieu].filter(Boolean).join(', '))+'</div>'+
+    '<div class="meta"><b>'+(p.distance!=null?Math.round(p.distance)+' km':'')+'</b><b>≈ '+eur(p.montant)+'</b><span>'+(p.surface?esc(p.surface.toLocaleString('fr-FR'))+' m²':'')+(p.logements?' · '+p.logements+' logements':'')+'</span><span>'+esc(p.etape)+'</span><span>Accordé le '+esc(fdate(p.autorise))+'</span></div>'+
+    '<details><summary>Maître d\'ouvrage et dirigeants</summary>'+entBlock(p.siren,'Maître d\'ouvrage')+
+    '<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. L\'architecte n\'est pas publié dans les données des permis.</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
+}
+function cardMO(r){
+  const e=ent(r.siren), id='M'+r.siren;
+  return '<article class="card s-'+(ST[id]||'')+'"><h3>'+esc(e?.nom||r.nom)+'</h3><div class="meta"><span class="big">'+r.zone+'</span><span>permis dans ta zone (100 km) en 5 ans · '+r.total+' en France</span><b>≈ '+eur(r.montant_zone)+' de travaux</b><span>Dernier : '+esc(fdate(r.derniere))+'</span></div>'+
+    '<details><summary>Dirigeants et liens</summary>'+entBlock(r.siren,'Entreprise')+noteBox(id)+'</details>'+statusBar(id)+'</article>';
+}
+function cardTit(t){
+  const id='T'+norm(t.nom).replace(/\W+/g,'-'), e=ent(t.siren);
+  return '<article class="card s-'+(ST[id]||'')+'"><h3>'+esc(e?.nom||t.nom)+'</h3><div class="meta"><span class="big">'+t.n+'</span><span>marchés de maîtrise d\'œuvre gagnés en 3 ans</span><span>Dép. '+esc(t.deps.join(', '))+'</span><span>Dernier : '+esc(fdate(t.derniere))+'</span></div>'+
+    '<details><summary>Dirigeants, acheteurs et exemples</summary>'+(t.siren?entBlock(t.siren,'Entreprise'):'<div class="meta">Entreprise non retrouvée dans l\'annuaire.</div>')+
+    '<div class="meta">Pour : '+esc(t.acheteurs.slice(0,6).join(' · '))+'</div><ul class="ppl">'+t.exemples.map(x=>'<li>'+esc(x.objet)+' <span>· '+esc(x.acheteur)+', '+esc(fdate(x.date))+'</span></li>').join('')+'</ul>'+noteBox(id)+'</details>'+statusBar(id)+'</article>';
+}
+function cardAch(a){
+  const id='A'+norm(a.nom).replace(/\W+/g,'-');
+  return '<article class="card s-'+(ST[id]||'')+'"><h3>'+esc(a.nom)+'</h3><div class="meta"><span class="big">'+a.n+'</span><span>marchés attribués en 3 ans</span><span>'+Object.entries(a.missions).map(([k,v])=>esc(k)+' : '+v).join(' · ')+'</span><span>Dernier : '+esc(fdate(a.derniere))+'</span></div>'+
+    (a.decideur?'<ul class="ppl"><li>'+esc(a.decideur.nom)+' <span>· '+esc(a.decideur.qualite)+'</span></li></ul>':'')+'<details><summary>Ma note</summary>'+noteBox(id)+'</details>'+statusBar(id)+'</article>';
+}
+function cardArchi(a){
+  const e=ent(a.siren), id='R'+a.siren;
+  return '<article class="card s-'+(ST[id]||'')+'"><h3>'+esc(e?.nom||a.siren)+'</h3><div class="meta"><b>'+Math.round(a.distance)+' km</b><span>'+esc(e?.commune||'')+'</span>'+(a.marches?'<span class="tag hot">'+a.marches+' marchés publics gagnés</span>':'')+'<span>Effectif : '+esc(effectif(e?.effectif))+'</span></div>'+
+    '<details><summary>Dirigeants et liens</summary>'+entBlock(a.siren,'Agence')+noteBox(id)+'</details>'+statusBar(id)+'</article>';
+}
+function effectif(c){return ({'NN':'non renseigné','00':'0','01':'1-2','02':'3-5','03':'6-9','11':'10-19','12':'20-49','21':'50-99','22':'100-199'})[c]||(c?c:'non renseigné')}
+
+// --- filtres
+function opts(){
+  if(view==='marches') return {types:[...new Set(D.marches.map(m=>m.type))],etapes:[...new Set(D.marches.map(m=>m.etape))],missions:['Maîtrise d\'œuvre','AMO','OPC','DET','Économie']};
+  if(view==='permis') return {types:[...new Set(D.permis.map(m=>m.type))],etapes:['Permis accordé, chantier non ouvert','Chantier ouvert','Chantier terminé']};
+  return {};
+}
+function chips(key,vals){return '<div class="chips">'+vals.map(v=>'<button class="chip" data-k="'+key+'" data-v="'+esc(v)+'" aria-pressed="'+F[key].includes(v)+'">'+esc(v)+'</button>').join('')+'</div>'}
+function drawFilters(){
+  const o=opts(); let h='';
+  h+='<fieldset><legend>Distance max. de Saint-Jean-d\'Angély</legend><div class="range"><input type="range" id="fd" min="10" max="1000" step="10" value="'+F.dist+'"><output id="fdo">'+(F.dist>=1000?'Toutes':F.dist+' km')+'</output></div></fieldset>';
+  if(view==='marches'||view==='permis'){
+    h+='<fieldset><legend>Montant de travaux</legend><div class="range"><select id="fmin" aria-label="Minimum">'+MONTANTS.map(([v,l])=>'<option value="'+v+'"'+(F.mmin==v?' selected':'')+'>min. '+l+'</option>').join('')+'</select><select id="fmax" aria-label="Maximum">'+MONTANTS.map(([v,l])=>'<option value="'+v+'"'+(F.mmax==v?' selected':'')+'>max. '+(v?l:'aucun')+'</option>').join('')+'</select></div></fieldset>';
+    h+='<fieldset><legend>Type de bâtiment</legend>'+chips('types',o.types.sort())+'</fieldset>';
+    h+='<fieldset><legend>Avancement</legend>'+chips('etapes',o.etapes)+'</fieldset>';
+  }
+  if(view==='marches') h+='<fieldset><legend>Mission</legend>'+chips('missions',o.missions)+'</fieldset><fieldset><legend>Consultations</legend><div class="chips"><button class="chip" id="fo" aria-pressed="'+F.ouverts+'">Encore ouvertes seulement</button></div></fieldset>';
+  if(view==='permis') h+='<fieldset><legend>Travaux</legend><div class="chips">'+['','Neuf','Réhabilitation'].map(v=>'<button class="chip" data-t="'+v+'" aria-pressed="'+(F.travaux===v)+'">'+(v||'Tous')+'</button>').join('')+'</div></fieldset>';
+  h+='<fieldset><legend>Suivi</legend><div class="chips"><button class="chip" id="fe" aria-pressed="'+F.ecartes+'">Montrer les écartés</button></div></fieldset>';
+  h+='<fieldset><legend>&nbsp;</legend><button class="btn" id="freset">Réinitialiser les filtres</button></fieldset>';
+  $('#filtres').innerHTML=h;
+}
+function keep(x,id){
+  if(!F.ecartes&&ST[id]==='ecarte'&&view!=='suivi') return false;
+  if(F.dist<1000&&x.distance!=null&&x.distance>F.dist) return false;
+  if(view==='marches'||view==='permis'){
+    if(F.mmin&&(x.montant==null||x.montant<F.mmin)) return false;
+    if(F.mmax&&x.montant!=null&&x.montant>F.mmax) return false;
+    if(F.types.length&&!F.types.includes(x.type)) return false;
+    if(F.etapes.length&&!F.etapes.includes(x.etape)) return false;
+  }
+  if(view==='marches'){if(F.ouverts&&!x.ouvert)return false;if(F.missions.length&&!x.missions.some(m=>F.missions.includes(m)))return false}
+  if(view==='permis'&&F.travaux&&(F.travaux==='Réhabilitation')!==!!x.rehab) return false;
+  const q=norm($('#q').value); if(q){const e=ent(x.siren);if(!norm(JSON.stringify(x)+' '+(e?JSON.stringify(e):'')).includes(q))return false}
+  return true;
+}
+function items(){
+  const t=$('#tri').value;
+  let L;
+  if(view==='marches') L=D.marches.map(x=>({x,id:x.id,card:cardMarche,score:(x.ouvert?100:0)+(x.missions.includes("Maîtrise d'œuvre")?20:0)-(x.distance||0)/10,date:x.parution}));
+  else if(view==='permis') L=D.permis.map(x=>({x,id:x.id,card:cardPermis,score:(x.etape.startsWith('Permis')?60:x.etape==='Chantier ouvert'?30:0)+Math.min(x.mo_permis_zone,10)*5+Math.log10(x.montant||1e5)*5-(x.distance||0)/10,date:x.autorise}));
+  else if(view==='recurrents'){
+    if(sub==='mo') L=D.recurrents.maitres_ouvrage.map(x=>({x:{...x,montant:x.montant_zone},id:'M'+x.siren,card:()=>cardMO(x),score:x.zone,date:x.derniere}));
+    else if(sub==='tit') L=D.recurrents.titulaires.map(x=>({x,id:'T'+norm(x.nom).replace(/\W+/g,'-'),card:cardTit,score:x.n,date:x.derniere}));
+    else L=D.recurrents.acheteurs.map(x=>({x,id:'A'+norm(x.nom).replace(/\W+/g,'-'),card:cardAch,score:x.n,date:x.derniere}));
+  }
+  else if(view==='architectes') L=D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi,score:x.marches*10-x.distance/10,date:x.derniere||''}));
+  else { // suivi
+    const all=[...D.marches.map(x=>({x,id:x.id,card:cardMarche})),...D.permis.map(x=>({x,id:x.id,card:cardPermis})),...D.recurrents.maitres_ouvrage.map(x=>({x,id:'M'+x.siren,card:()=>cardMO(x)})),...D.recurrents.titulaires.map(x=>({x,id:'T'+norm(x.nom).replace(/\W+/g,'-'),card:cardTit})),...D.recurrents.acheteurs.map(x=>({x,id:'A'+norm(x.nom).replace(/\W+/g,'-'),card:cardAch})),...D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi}))];
+    L=all.filter(i=>ST[i.id]&&(sub==='tous'||ST[i.id]===sub)).map(i=>({...i,score:ST[i.id]==='interessant'?2:ST[i.id]==='contacte'?1:0,date:''}));
+  }
+  L=L.filter(i=>keep(i.x,i.id));
+  const by={pert:(a,b)=>b.score-a.score,dist:(a,b)=>(a.x.distance??9e9)-(b.x.distance??9e9),mont:(a,b)=>(b.x.montant??-1)-(a.x.montant??-1),date:(a,b)=>String(b.date).localeCompare(String(a.date))}[t];
+  return L.sort(by);
+}
+function drawSub(){
+  let h='';
+  if(view==='recurrents') h=[['mo','Maîtres d\'ouvrage privés'],['tit','Architectes (marchés gagnés)'],['ach','Acheteurs publics']].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
+  if(view==='suivi') h=[['tous','Tout'],...STATUTS].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
+  $('#sub').innerHTML=h;
+}
+function render(){
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));
+  $('#n-marches').textContent=' '+D.marches.length;$('#n-permis').textContent=' '+D.permis.length;$('#n-architectes').textContent=' '+D.architectes.length;
+  $('#n-suivi').textContent=' '+Object.values(ST).filter(s=>s!=='ecarte').length;
+  drawSub();drawFilters();
+  const L=items();
+  $('#count').textContent=L.length+' résultat'+(L.length>1?'s':'');
+  $('#list').innerHTML=L.length?L.slice(0,shown).map(i=>i.card(i.x)).join(''):'<div class="empty">'+(view==='suivi'?'Marque des fiches « Intéressant » ou « Contacté » pour les retrouver ici.':'Aucun résultat avec ces filtres.')+'</div>';
+  $('#more').hidden=L.length<=shown;
+  store.set('exo-filtres',F);
+}
+// --- événements
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;view=b.dataset.v;sub=view==='suivi'?'tous':'mo';shown=40;history.replaceState(null,'','#'+view);render()});
+$('#sub').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(!b)return;sub=b.dataset.sub;shown=40;render()});
+$('#bf').addEventListener('click',()=>{const o=$('#filtres').classList.toggle('open');$('#bf').setAttribute('aria-expanded',o);$('#bf').classList.toggle('on',o)});
+$('#q').addEventListener('input',()=>{shown=40;render()});
+$('#tri').addEventListener('change',render);
+$('#more').addEventListener('click',()=>{shown+=40;render()});
+$('#filtres').addEventListener('input',e=>{
+  if(e.target.id==='fd'){F.dist=+e.target.value;$('#fdo').textContent=F.dist>=1000?'Toutes':F.dist+' km';clearTimeout(window.__t);window.__t=setTimeout(render,250)}
+  if(e.target.id==='fmin'){F.mmin=+e.target.value;render()} if(e.target.id==='fmax'){F.mmax=+e.target.value;render()}
+});
+$('#filtres').addEventListener('click',e=>{
+  const c=e.target.closest('button');if(!c)return;
+  if(c.dataset.k){const a=F[c.dataset.k],v=c.dataset.v,i=a.indexOf(v);i<0?a.push(v):a.splice(i,1)}
+  else if(c.id==='fo')F.ouverts=!F.ouverts; else if(c.id==='fe')F.ecartes=!F.ecartes;
+  else if(c.dataset.t!==undefined)F.travaux=c.dataset.t;
+  else if(c.id==='freset')Object.assign(F,{dist:1000,mmin:0,mmax:0,types:[],etapes:[],missions:[],travaux:'',ouverts:false,ecartes:false});
+  else return;
+  shown=40;render();
+});
+$('#list').addEventListener('click',e=>{const b=e.target.closest('.st');if(!b)return;const id=b.dataset.id;ST[id]=ST[id]===b.dataset.s?undefined:b.dataset.s;if(!ST[id])delete ST[id];store.set('exo-suivi',ST);render()});
+$('#list').addEventListener('change',e=>{const t=e.target.closest('[data-note]');if(!t)return;NOTES[t.dataset.note]=t.value;store.set('exo-notes',NOTES)});
+$('#copy').addEventListener('click',async()=>{
+  const L=items(),rows=[['Nom','Objet / type','Lieu','Distance km','Montant €','Étape','Dirigeants / décideur','Suivi']];
+  for(const i of L){const x=i.x,e=ent(x.siren);rows.push([e?.nom||x.mo||x.acheteur||x.nom||'',x.objet||x.type||'',x.lieu||e?.commune||'',x.distance??'',x.montant??'',x.etape||'',(e?.dirigeants||[]).map(d=>d.nom+' ('+d.qualite+')').join(', ')||x.decideur?.nom||'',ST[i.id]||''])}
+  const txt=rows.map(r=>r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t')).join('\n');
+  try{await navigator.clipboard.writeText(txt);$('#copy').textContent='Copié ('+L.length+') ✓'}catch(err){$('#copy').textContent='Copie impossible'}
+  setTimeout(()=>$('#copy').textContent='Copier la liste',2500);
+});
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==view){view=v;render()}});
+load();
+}
+</script>
+</body>
+</html>
