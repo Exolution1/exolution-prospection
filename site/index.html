@@ -167,7 +167,7 @@ function cardPermis(p){
     '<h3>'+esc(e?.nom||p.mo||'Maître d\'ouvrage')+'</h3><div class="who">'+esc([p.adresse,p.lieu].filter(Boolean).join(', '))+'</div>'+
     '<div class="meta"><b>'+(p.distance!=null?Math.round(p.distance)+' km':'')+'</b><b>≈ '+eur(p.montant)+'</b><span>'+(p.surface?esc(p.surface.toLocaleString('fr-FR'))+' m²':'')+(p.logements?' · '+p.logements+' logements':'')+'</span><span>'+esc(p.etape)+'</span><span>Accordé le '+esc(fdate(p.autorise))+'</span></div>'+
     '<details><summary>Maître d\'ouvrage et dirigeants</summary>'+entBlock(p.siren,'Maître d\'ouvrage')+
-    '<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. '+(p.architecte===true?'Un architecte est déclaré sur ce permis, mais son nom n’est pas publié.':p.architecte===false?'Pas d’architecte déclaré.':'L’architecte n’est pas publié.')+'</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
+    '<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. '+(p.architecte===true?'Un architecte est déclaré sur ce permis (nom non publié).':'Le nom de l’architecte n’est pas publié dans les données des permis.')+'</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
 }
 function cardMO(r){
   const e=ent(r.siren), id='M'+r.siren;
