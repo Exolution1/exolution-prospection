@@ -368,6 +368,48 @@ def to_eur(num, unit):
 DIAG = []
 
 
+def _txt(v):
+    if isinstance(v, dict):
+        v = v.get("#text")
+    return str(v).strip() if v not in (None, "") else None
+
+
+def _get(o, *path):
+    for k in path:
+        if isinstance(o, list):
+            o = o[0] if o else None
+        if not isinstance(o, dict):
+            return None
+        o = next((v for kk, v in o.items() if kk.split(":")[-1] == k), None)
+    return o
+
+
+def eforms_orgs(d):
+    """Liste des organisations d'un avis eForms (nom, CP, contact)."""
+    found = []
+    def rec(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k.split(":")[-1] == "Organization":
+                    for org in as_list(v):
+                        c = _get(org, "Company") or {}
+                        found.append({
+                            "nom": _txt(_get(c, "PartyName", "Name")),
+                            "cp": _txt(_get(c, "PostalAddress", "PostalZone")),
+                            "contact": _txt(_get(c, "Contact", "Name")),
+                            "fonction": _txt(_get(c, "Contact", "JobTitle")),
+                            "tel": _txt(_get(c, "Contact", "Telephone")),
+                            "mel": _txt(_get(c, "Contact", "ElectronicMail")),
+                        })
+                else:
+                    rec(v)
+        elif isinstance(o, list):
+            for x in o:
+                rec(x)
+    rec(d)
+    return found
+
+
 def analyse_avis(rec):
     d = parse_donnees(rec.get("donnees"))
     flat = list(walk(d)) if d else []
@@ -396,6 +438,14 @@ def analyse_avis(rec):
                 titulaires.append(sv)
         if ("correspondant" in pl or "contact" in pl) and last in ("nom", "nomcorrespondant", "prenom", "fonction", "tel", "mel", "email", "telephone"):
             contacts.append(sv)
+    # format eForms : on retient l'organisation qui correspond à l'acheteur
+    orgs = eforms_orgs(d)
+    if orgs:
+        ach = set(norm(rec.get("nomacheteur")).split())
+        best = max(orgs, key=lambda o: len(ach & set(norm(o.get("nom")).split())))
+        if ach & set(norm(best.get("nom")).split()):
+            cps = [best["cp"]] + cps if best.get("cp") else cps
+            contacts = [x for x in (best.get("contact"), best.get("fonction"), best.get("tel"), best.get("mel")) if x]
     tit = [t for t in as_list(rec.get("titulaire")) if t] or titulaires
     return {
         "montant": max(montants) if montants else None,
@@ -545,6 +595,10 @@ def collect_marches():
             "procedure": x.get("procedure_libelle"),
             "url": x.get("url_avis") or f"https://www.boamp.fr/pages/avis/?q=idweb:%22{x.get('idweb')}%22",
         })
+    uniq = {}
+    for r in out:
+        uniq.setdefault((norm(r["objet"]), norm(r["acheteur"])), r)
+    out = list(uniq.values())
     out.sort(key=lambda r: (not r["ouvert"], r["limite"] or "9999", r["distance"] or 999))
     save("marches.json", out)
     META.setdefault("nombres", {})["marches"] = len(out)
