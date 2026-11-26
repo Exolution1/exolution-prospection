@@ -1,0 +1,72 @@
+name: Mise à jour des prospects
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # chaque nuit vers 4h15 (heure de Paris)
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/**", "config.json", ".github/workflows/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Cache des fiches entreprises
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: entreprises-${{ github.run_id }}
+          restore-keys: entreprises-
+
+      - name: Fichiers de permis du mois
+        id: mois
+        run: echo "m=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: work
+          key: sitadel-${{ steps.mois.outputs.m }}
+
+      - name: Collecte des données
+        run: python scripts/collect.py
+
+      - name: Données brutes (pour diagnostic)
+        uses: actions/upload-artifact@v4
+        with:
+          name: donnees
+          path: site/data
+          retention-days: 7
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publication:
+    needs: collecte
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4

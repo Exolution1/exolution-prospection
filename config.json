@@ -1,0 +1,39 @@
+{
+  "base": {
+    "nom": "Saint-Jean-d'Angély",
+    "code_insee": "17347",
+    "lat": 45.9466,
+    "lon": -0.5208
+  },
+  "regles_zone": {
+    "petit_projet_max_eur": 500000,
+    "petit_projet_rayon_km": 20,
+    "moyen_projet_max_eur": 4000000,
+    "moyen_projet_rayon_km": 100,
+    "grand_projet_latitude_max": 46.8,
+    "economie_france_entiere": true,
+    "montant_inconnu_rayon_km": 100
+  },
+  "periodes": {
+    "marches_jours": 90,
+    "attributions_annees": 3,
+    "permis_annees": 3,
+    "recurrence_annees": 5
+  },
+  "departements_recurrence": ["17", "16", "79", "86", "85", "33", "24", "87", "47", "49", "44", "37", "36"],
+  "departements_architectes": ["17", "16", "79", "86", "85", "33", "24"],
+  "cout_m2_eur": {
+    "Logement collectif": 1900,
+    "Résidence (étudiants, seniors…)": 2000,
+    "Tertiaire / bureaux": 1800,
+    "Commercial": 1300,
+    "Industriel / artisanal": 900,
+    "Entrepôt / logistique": 750,
+    "Agricole": 450,
+    "Équipement public": 2200,
+    "Hébergement / hôtellerie": 2000,
+    "Autre": 1400
+  },
+  "coef_rehabilitation": 0.7,
+  "max_enrichissements_par_run": 1500
+}
