@@ -92,7 +92,7 @@ def dans_zone(distance, lat, montant, economie_seule=False):
         return distance <= Z["petit_projet_rayon_km"], f"< 500 k€ : ≤ {Z['petit_projet_rayon_km']} km"
     if montant <= Z["moyen_projet_max_eur"]:
         return distance <= Z["moyen_projet_rayon_km"], f"≤ 4 M€ : ≤ {Z['moyen_projet_rayon_km']} km"
-    ok = lat is not None and lat <= Z["grand_projet_latitude_max"]
+    ok = lat is not None and 41 <= lat <= Z["grand_projet_latitude_max"] and distance <= 1000
     return ok, "> 4 M€ : moitié sud, au cas par cas"
 
 
@@ -365,9 +365,14 @@ def to_eur(num, unit):
     return v
 
 
+DIAG = []
+
+
 def analyse_avis(rec):
     d = parse_donnees(rec.get("donnees"))
     flat = list(walk(d)) if d else []
+    if len(DIAG) < 3 and flat:
+        DIAG.append([f"{k} = {str(v)[:50]}" for k, v in flat if isinstance(v, (str, int))][:150])
     texte = " ".join(str(v) for _, v in flat if isinstance(v, str))
     # montant des travaux annoncé dans le texte
     montants = []
@@ -379,11 +384,12 @@ def analyse_avis(rec):
     cps, villes, contacts, titulaires = [], [], [], []
     for p, v in flat:
         pl = p.lower()
-        last = pl.rsplit("/", 1)[-1]
+        segs = [x.split(":")[-1] for x in pl.split("/") if x and not x.startswith(("#", "@"))]
+        last = segs[-1] if segs else ""
         if not isinstance(v, (str, int)):
             continue
         sv = str(v).strip()
-        if last in ("cp", "code_postal", "codepostal", "postalzone", "postal_code") and re.fullmatch(r"\d{5}", sv):
+        if last in ("cp", "code_postal", "codepostal", "postalzone", "postal_code", "codepostale") and re.fullmatch(r"\d{5}", sv):
             cps.append(sv)
         if "titulaire" in pl or "winner" in pl or "tenderer" in pl or "contractor" in pl:
             if last in ("denomination", "nom", "officialname", "name", "raison_sociale", "nom_officiel") and len(sv) > 2:
@@ -540,6 +546,8 @@ def collect_attributions():
         if not est_resultat(x):
             continue
         objet = x.get("objet") or ""
+        if HORS_BATIMENT.search(norm(objet)) and not re.search(r"batiment|construction|rehabilitation|logement", norm(objet)):
+            continue
         mis = missions(objet + " " + " ".join(as_list(x.get("descripteur_libelle"))))
         if not mis:
             continue
@@ -740,8 +748,14 @@ def traite_sitadel(path, kind):
             typ = max(parts, key=parts.get) if parts else "Autre"
         cout = CFG["cout_m2_eur"].get(typ, CFG["cout_m2_eur"]["Autre"]) * (CFG["coef_rehabilitation"] if rehab else 1)
         montant = round(surf * cout, -3) if surf > 0 else None
-        # récurrence
-        r = RECUR_MO.setdefault(siren, {"siren": siren, "nom": g(row, "denom"), "total": 0, "zone": 0, "montant_zone": 0, "derniere": ""})
+        # récurrence (projets d'au moins 150 k€ estimés)
+        if (montant or 0) < 150_000:
+            if daut < lim_per:
+                continue
+            r = {"total": 0, "zone": 0, "montant_zone": 0, "derniere": ""}
+        else:
+            r = None
+        r = r or RECUR_MO.setdefault(siren, {"siren": siren, "nom": g(row, "denom"), "total": 0, "zone": 0, "montant_zone": 0, "derniere": ""})
         r["total"] += 1
         if dkm is not None and dkm <= Z["moyen_projet_rayon_km"]:
             r["zone"] += 1
@@ -921,6 +935,7 @@ def main():
     with open(NAME_CACHE_F, "w", encoding="utf-8") as f:
         json.dump(NAMES, f, ensure_ascii=False)
     META["config"] = {"base": BASE, "regles_zone": Z}
+    META["diagnostic_avis"] = DIAG
     save("meta.json", META)
     log("\nErreurs :", META["erreurs"] or "aucune")
 

@@ -176,7 +176,8 @@ function cardMO(r){
 }
 function cardTit(t){
   const id='T'+norm(t.nom).replace(/\W+/g,'-'), e=ent(t.siren);
-  return '<article class="card s-'+(ST[id]||'')+'"><h3>'+esc(e?.nom||t.nom)+'</h3><div class="meta"><span class="big">'+t.n+'</span><span>marchés de maîtrise d\'œuvre gagnés en 3 ans</span><span>Dép. '+esc(t.deps.join(', '))+'</span><span>Dernier : '+esc(fdate(t.derniere))+'</span></div>'+
+  const metier=e?.naf==='71.11Z'?'<span class="tag blue">Architecte</span>':e?.naf?'<span class="tag">Bureau d’études / ingénierie</span>':'';
+  return '<article class="card s-'+(ST[id]||'')+'"><div>'+metier+'</div><h3>'+esc(e?.nom||t.nom)+'</h3><div class="meta"><span class="big">'+t.n+'</span><span>marchés de maîtrise d\'œuvre gagnés en 3 ans</span><span>Dép. '+esc(t.deps.join(', '))+'</span><span>Dernier : '+esc(fdate(t.derniere))+'</span></div>'+
     '<details><summary>Dirigeants, acheteurs et exemples</summary>'+(t.siren?entBlock(t.siren,'Entreprise'):'<div class="meta">Entreprise non retrouvée dans l\'annuaire.</div>')+
     '<div class="meta">Pour : '+esc(t.acheteurs.slice(0,6).join(' · '))+'</div><ul class="ppl">'+t.exemples.map(x=>'<li>'+esc(x.objet)+' <span>· '+esc(x.acheteur)+', '+esc(fdate(x.date))+'</span></li>').join('')+'</ul>'+noteBox(id)+'</details>'+statusBar(id)+'</article>';
 }
