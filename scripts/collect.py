@@ -572,6 +572,13 @@ def dido_params(url):
                 tries.insert(0, dict(base, millesime=last))
         except Exception as e:
             log("  métadonnées DiDo indisponibles :", e)
+    # millésimes récents (le plus récent peut être en cours de publication)
+    y, mo = TODAY.year, TODAY.month
+    for _ in range(4):
+        tries.append(dict(base, millesime=f"{y}-{mo:02d}"))
+        mo -= 1
+        if mo == 0:
+            y, mo = y - 1, 12
     return tries + [{}]
 
 
