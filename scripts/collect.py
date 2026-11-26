@@ -807,7 +807,8 @@ def traite_sitadel(path, kind):
             "ouverture": ddoc.isoformat() if ddoc else None,
             "achevement": dact.isoformat() if dact else None,
             "etape": etape,
-            "architecte": {"1": True, "O": True, "0": False, "N": False}.get(g(row, "archi").upper()),
+            "architecte": {"1": True, "O": True, "OUI": True, "TRUE": True, "T": True, "Y": True,
+                           "0": False, "N": False, "NON": False, "FALSE": False, "F": False}.get(g(row, "archi").upper()),
         })
     log(f"  [{kind}] {n} lignes lues, {kept} permis retenus")
 
