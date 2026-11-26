@@ -688,6 +688,7 @@ def traite_sitadel(path, kind):
         "num_ter": ("ADR_NUM_TER",), "voie_ter": ("ADR_LIBVOIE_TER",), "typv_ter": ("ADR_TYPEVOIE_TER",),
         "loc_ter": ("ADR_LOCALITE_TER",), "cp_ter": ("ADR_CODPOST_TER",),
         "dest": ("DESTINATION_PRINCIPALE", "DEST_PRINC"),
+        "archi": ("REC_ARCHI",),
     }.items()}
     log(f"  [{kind}] correspondances : { {k: (cols[v] if v is not None else None) for k, v in I.items()} }")
     surf_cols = [(i, c) for c, i in ix.items() if c.startswith("SURF_") and ("CREE" in c or "TRANSFO" in c) and "DEMOL" not in c]
@@ -706,8 +707,6 @@ def traite_sitadel(path, kind):
         siren = re.sub(r"\D", "", g(row, "siren") or g(row, "siret"))[:9]
         if len(siren) != 9:
             continue  # particulier ou demandeur anonymisé
-        if kind == "logements" and g(row, "typlog") in ("1", "2"):
-            continue  # maison individuelle
         daut = pdate(g(row, "daut"))
         if not daut or daut < lim_rec:
             continue
@@ -717,22 +716,28 @@ def traite_sitadel(path, kind):
         com = commune_info(g(row, "comm"))
         dkm = dist(com["lat"], com["lon"]) if com else None
         # surface et type
+        nat = g(row, "nat")
+        rehab = nat == "2"
+        def col_sum(*names):
+            return sum(fnum(row[ix[c]]) for c in names if c in ix and ix[c] < len(row))
         if kind == "logements":
-            surf = fnum(g(row, "shab"))
-            tl = g(row, "typlog")
-            typ = "Résidence (étudiants, seniors…)" if tl == "4" else "Logement collectif"
-            parts = {}
+            if col_sum("NB_LGT_COL_CREES", "NB_LGT_RES") == 0 and col_sum("NB_LGT_IND_CREES") > 0:
+                continue  # uniquement de l'individuel
+            surf = col_sum("SURF_HAB_CREEE", "SURF_HAB_ISSUE_TRANSFO") or (col_sum("SURF_HAB_TRANSFORMEE") if rehab else 0)
+            typ = "Résidence (étudiants, seniors…)" if col_sum("NB_LGT_RES") > col_sum("NB_LGT_COL_HORS_RES") else "Logement collectif"
         else:
             parts = {}
             for i, c in surf_cols:
+                if c.startswith(("SURF_LOC", "SURF_HAB")) or c.endswith("TRANSFORMEE"):
+                    continue
                 v = fnum(row[i]) if i < len(row) else 0
                 if v > 0:
-                    lab = next((lab for key, lab in DEST_MAP if f"_{key}" in c), "Autre")
+                    lab = next((lab for key, lab in DEST_MAP if c.startswith(f"SURF_{key}")), "Autre")
                     parts[lab] = parts.get(lab, 0) + v
-            surf = fnum(g(row, "sloc")) or sum(parts.values())
+            surf = col_sum("SURF_LOC_CREEE", "SURF_LOC_ISSUE_TRANSFO") or sum(parts.values())
+            if not surf and rehab:
+                surf = col_sum("SURF_LOC_TRANSFORMEE")
             typ = max(parts, key=parts.get) if parts else "Autre"
-        nat = g(row, "nat")
-        rehab = nat == "2"
         cout = CFG["cout_m2_eur"].get(typ, CFG["cout_m2_eur"]["Autre"]) * (CFG["coef_rehabilitation"] if rehab else 1)
         montant = round(surf * cout, -3) if surf > 0 else None
         # récurrence
@@ -772,6 +777,7 @@ def traite_sitadel(path, kind):
             "ouverture": ddoc.isoformat() if ddoc else None,
             "achevement": dact.isoformat() if dact else None,
             "etape": etape,
+            "architecte": {"1": True, "O": True, "0": False, "N": False}.get(g(row, "archi").upper()),
         })
     log(f"  [{kind}] {n} lignes lues, {kept} permis retenus")
 

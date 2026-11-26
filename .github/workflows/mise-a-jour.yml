@@ -39,7 +39,7 @@ jobs:
 
       - name: Fichiers de permis du mois
         id: mois
-        run: echo "m=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "m=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         with:
