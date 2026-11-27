@@ -63,6 +63,7 @@ details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue);min-height:32px;display:flex;align-items:center}
 .ppl{list-style:none;padding:0;margin:6px 0}.ppl li{padding:4px 0;border-bottom:1px solid var(--line);font-size:15px}
 .ppl li span{color:var(--mute);font-size:13.5px}
+.jlast{font-size:14px;margin-top:8px;padding:6px 10px;background:var(--soft);border-radius:8px}.jr>summary{color:var(--ink)}.jform{display:grid;gap:6px;margin-top:6px}.jform input,.jform select{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:44px;width:100%}.warnbtn{color:#c62828!important;border-color:#c62828!important}
 .confirm{flex:1 1 100%;font-weight:600;font-size:15px}.btn.danger{background:#c62828;border-color:#c62828;color:#fff}
 .adv>summary{background:var(--orange);color:#fff;border-radius:10px;padding:10px 14px;min-height:44px;margin:4px 0;list-style:none;font-family:Archivo,system-ui,sans-serif}.adv>summary::-webkit-details-marker{display:none}.adv>summary::before{content:'+ '}.adv[open]>summary::before{content:'– '}a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .links a{color:var(--blue);font-size:14px;margin-right:14px;display:inline-block;padding:4px 0}
@@ -118,7 +119,11 @@ const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e)
 let D={marches:[],permis:[],recurrents:{maitres_ouvrage:[],titulaires:[],acheteurs:[]},architectes:[],entreprises:{},meta:{},mairies:{}};
 let view=location.hash.slice(1)||'marches', sub=view==='suivi'?'tous':'mo', shown=40;
 if(!['marches','permis','recurrents','architectes','suivi'].includes(view)){view='marches'}
-const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{}), ARCHI=store.get('exo-archi',{});
+const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{}), ARCHI=store.get('exo-archi',{}), JOUR=store.get('exo-journal',{});
+const TYPES=['Demande mairie','Appel','Email','Rendez-vous / visite','Proposition envoyée','Recherche d’interlocuteurs','Autre'];
+const today=()=>new Date().toISOString().slice(0,10);
+function logDem(id,type,txt,jours){const r=jours?new Date(Date.now()+jours*864e5).toISOString().slice(0,10):'';(JOUR[id]=JOUR[id]||[]).push({d:today(),type,txt,r});if(!ST[id]){ST[id]='interessant';store.set('exo-suivi',ST)}store.set('exo-journal',JOUR)}
+const aRelancer=id=>(JOUR[id]||[]).some(j=>j.r&&j.r<=today()&&!j.fait);
 const F=Object.assign({dist:1000,mmin:0,mmax:0,types:[],etapes:[],missions:[],travaux:'',ouverts:false,ecartes:false},store.get('exo-filtres',{}));
 const STATUTS=[['interessant','Intéressant'],['contacte','Contacté'],['ecarte','Écarté']];
 const MONTANTS=[[0,'Tous'],[500e3,'500 k€'],[1e6,'1 M€'],[2e6,'2 M€'],[4e6,'4 M€']];
@@ -148,9 +153,17 @@ function entBlock(s,label,fallback){
   return '<div><b>'+esc(label)+' : '+esc(e?.nom||fallback||s||'')+'</b>'+(e?.adresse?'<div class="meta">'+esc(e.adresse)+'</div>':'')+
     '<ul class="ppl">'+people(e)+'</ul><div class="links">'+entLinks(e,s)+'</div></div>';
 }
+function journal(id){
+  const J=JOUR[id]||[], last=J[J.length-1];
+  const prochaine=J.filter(j=>j.r&&!j.fait).map(j=>j.r).sort()[0];
+  const resume=last?'<div class="jlast"><b>'+esc(fdate(last.d))+'</b> · '+esc(last.type)+(last.txt?' – '+esc(last.txt):'')+(prochaine?' <span class="tag'+(prochaine<=today()?' hot':'')+'">Relance '+esc(fdate(prochaine))+'</span>':'')+'</div>':'';
+  const lignes=J.map((j,i)=>'<li><b>'+esc(fdate(j.d))+'</b> · '+esc(j.type)+(j.txt?' – '+esc(j.txt):'')+(j.r?' <span class="tag'+(!j.fait&&j.r<=today()?' hot':'')+'">'+(j.fait?'Relancé':'Relance '+esc(fdate(j.r)))+'</span>'+(!j.fait?' <button class="st" data-fait="'+esc(id)+'" data-i="'+i+'">Fait</button>':''):'')+' <button class="st" data-del="'+esc(id)+'" data-i="'+i+'" aria-label="Supprimer">×</button></li>').reverse().join('');
+  return resume+'<details class="jr"><summary>Démarches ('+J.length+')</summary><ul class="ppl">'+(lignes||'<li><span>Aucune démarche enregistrée</span></li>')+'</ul>'+
+   '<div class="jform"><select data-jt="'+esc(id)+'" aria-label="Type">'+TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select><input type="date" data-jd="'+esc(id)+'" value="'+today()+'" aria-label="Date"><input type="text" data-jx="'+esc(id)+'" placeholder="Avec qui, ce qui a été dit…" aria-label="Commentaire"><label class="meta">Relance le <input type="date" data-jr="'+esc(id)+'" aria-label="Date de relance"></label><button class="btn on" data-jadd="'+esc(id)+'">Ajouter la démarche</button></div></details>';
+}
 function statusBar(id){
   const cur=ST[id]||'';
-  return '<div class="acts">'+STATUTS.map(([k,l])=>'<button class="st" data-id="'+esc(id)+'" data-s="'+k+'" aria-pressed="'+(cur===k)+'">'+l+'</button>').join('')+'</div>';
+  return journal(id)+'<div class="acts">'+STATUTS.map(([k,l])=>'<button class="st" data-id="'+esc(id)+'" data-s="'+k+'" aria-pressed="'+(cur===k)+'">'+l+'</button>').join('')+'</div>';
 }
 function noteBox(id){return '<label class="meta" for="n-'+esc(id)+'">Ma note</label><textarea id="n-'+esc(id)+'" data-note="'+esc(id)+'">'+esc(NOTES[id]||'')+'</textarea>'}
 
@@ -191,7 +204,7 @@ function advanced(p){
   const mails=[['leger','Demander l’arrêté et le formulaire'],['complet','Demander le dossier complet (plans)']].map(([k,l])=>{
     const m=mailText(p,k==='complet');
     const href=mai?.email?'mailto:'+mai.email+'?subject='+encodeURIComponent(m.objet)+'&body='+encodeURIComponent(m.corps):'';
-    return '<div class="acts"><b style="font-size:14px;flex:1 1 100%">'+l+'</b>'+(href?'<a class="btn" href="'+esc(href)+'">Ouvrir l’email</a>':'')+'<button class="btn" data-copy="'+esc(id)+'" data-full="'+(k==='complet')+'">Copier le texte</button></div>';
+    return '<div class="acts"><b style="font-size:14px;flex:1 1 100%">'+l+'</b>'+(href?'<a class="btn" data-mlog="'+esc(id)+'" data-full="'+(k==='complet')+'" href="'+esc(href)+'">Ouvrir l’email</a>':'')+'<button class="btn" data-copy="'+esc(id)+'" data-full="'+(k==='complet')+'">Copier le texte</button></div>';
   }).join('');
   return '<details class="adv"><summary>Recherche avancée : trouver l’architecte</summary>'+
     '<div class="meta"><b>Mairie</b> '+(mai?esc(mai.nom)+(mai.email?' · '+esc(mai.email):'')+(mai.tel?' · '+esc(mai.tel):''):'coordonnées non trouvées : voir annuaire service-public.fr')+'</div>'+
@@ -284,7 +297,7 @@ function items(){
   else if(view==='architectes') L=D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi,score:x.marches*10-x.distance/10,date:x.derniere||''}));
   else { // suivi
     const all=[...D.marches.map(x=>({x,id:x.id,card:cardMarche})),...D.permis.map(x=>({x,id:x.id,card:cardPermis})),...D.recurrents.maitres_ouvrage.map(x=>({x,id:'M'+x.siren,card:()=>cardMO(x)})),...D.recurrents.titulaires.map(x=>({x,id:'T'+norm(x.nom).replace(/\W+/g,'-'),card:cardTit})),...D.recurrents.acheteurs.map(x=>({x,id:'A'+norm(x.nom).replace(/\W+/g,'-'),card:cardAch})),...D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi}))];
-    L=all.filter(i=>ST[i.id]&&ST[i.id]!=='ecarte'&&(sub==='tous'||ST[i.id]===sub)).map(i=>({...i,score:ST[i.id]==='interessant'?2:ST[i.id]==='contacte'?1:0,date:''}));
+    L=all.filter(i=>ST[i.id]&&ST[i.id]!=='ecarte'&&(sub==='tous'||(sub==='relance'?aRelancer(i.id):ST[i.id]===sub))).map(i=>({...i,score:(aRelancer(i.id)?10:0)+(ST[i.id]==='interessant'?2:ST[i.id]==='contacte'?1:0),date:((JOUR[i.id]||[]).slice(-1)[0]||{}).d||''}));
   }
   L=L.filter(i=>keep(i.x,i.id));
   const by={pert:(a,b)=>b.score-a.score,dist:(a,b)=>(a.x.distance??9e9)-(b.x.distance??9e9),mont:(a,b)=>(b.x.montant??-1)-(a.x.montant??-1),date:(a,b)=>String(b.date).localeCompare(String(a.date))}[t];
@@ -293,7 +306,7 @@ function items(){
 function drawSub(){
   let h='';
   if(view==='recurrents') h=[['mo','Maîtres d\'ouvrage privés'],['tit','Architectes (marchés gagnés)'],['ach','Acheteurs publics']].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
-  if(view==='suivi') h=[['tous','Tout'],...STATUTS.filter(s=>s[0]!=='ecarte')].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
+  if(view==='suivi') h=[['tous','Tout'],['relance','À relancer ('+Object.keys(ST).filter(k=>ST[k]!=='ecarte'&&aRelancer(k)).length+')'],...STATUTS.filter(s=>s[0]!=='ecarte')].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
   $('#sub').innerHTML=h;
 }
 function render(){
@@ -335,9 +348,17 @@ $('#list').addEventListener('click',e=>{
     b.closest('.acts').innerHTML='<span class="confirm">Écarter ce projet ? Il disparaîtra de Mon suivi.</span><button class="btn danger" data-confirm="'+esc(id)+'">Oui, écarter</button><button class="btn" data-cancel>Annuler</button>';
     return;
   }ST[id]=ST[id]===b.dataset.s?undefined:b.dataset.s;if(!ST[id])delete ST[id];store.set('exo-suivi',ST);render()});
+function logMairie(p,full){const mai=D.mairies?.[p.insee];logDem(p.id,'Demande mairie',(full?'Dossier complet':'Arrêté + formulaire')+' demandé(s) – permis n° '+p.num+(mai?.email?' – à '+mai.email:''),15)}
+$('#list').addEventListener('click',e=>{
+  const ml=e.target.closest('[data-mlog]');if(ml){const p=D.permis.find(x=>x.id===ml.dataset.mlog);if(p){logMairie(p,ml.dataset.full==='true');setTimeout(render,800)}return}
+  const add=e.target.closest('[data-jadd]');if(add){const id=add.dataset.jadd,box=add.closest('.jform');const v=s=>box.querySelector(s).value;
+    (JOUR[id]=JOUR[id]||[]).push({d:v('[data-jd]')||today(),type:v('[data-jt]'),txt:v('[data-jx]').trim(),r:v('[data-jr]')});JOUR[id].sort((a,b)=>a.d.localeCompare(b.d));if(!ST[id])ST[id]='interessant';store.set('exo-suivi',ST);store.set('exo-journal',JOUR);render();return}
+  const f=e.target.closest('[data-fait]');if(f){JOUR[f.dataset.fait][+f.dataset.i].fait=true;store.set('exo-journal',JOUR);render();return}
+  const d=e.target.closest('[data-del]');if(d){if(d.dataset.sure){JOUR[d.dataset.del].splice(+d.dataset.i,1);store.set('exo-journal',JOUR);render()}else{d.dataset.sure='1';d.textContent='Supprimer ?';d.classList.add('warnbtn')}return}
+});
 $('#list').addEventListener('input',e=>{const t=e.target.closest('[data-archi]');if(!t)return;ARCHI[t.dataset.archi]=t.value;store.set('exo-archi',ARCHI);const r=document.getElementById('ar-'+t.dataset.archi);if(r)r.innerHTML=archiRes(t.value)});
 $('#list').addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;const p=D.permis.find(x=>x.id===b.dataset.copy);if(!p)return;const m=mailText(p,b.dataset.full==='true');const mai=D.mairies?.[p.insee];
-  try{await navigator.clipboard.writeText((mai?.email?'À : '+mai.email+'\n':'')+'Objet : '+m.objet+'\n\n'+m.corps);b.textContent='Copié ✓'}catch(err){b.textContent='Copie impossible'}setTimeout(()=>b.textContent='Copier le texte',2500)});
+  try{await navigator.clipboard.writeText((mai?.email?'À : '+mai.email+'\n':'')+'Objet : '+m.objet+'\n\n'+m.corps);logMairie(p,b.dataset.full==='true');b.textContent='Copié ✓ · noté dans les démarches'}catch(err){b.textContent='Copie impossible'}setTimeout(()=>render(),1800)});
 $('#list').addEventListener('change',e=>{const t=e.target.closest('[data-note]');if(!t)return;NOTES[t.dataset.note]=t.value;store.set('exo-notes',NOTES)});
 $('#copy').addEventListener('click',async()=>{
   const L=items(),rows=[['Nom','Objet / type','Lieu','Distance km','Montant €','Étape','Dirigeants / décideur','Suivi']];
