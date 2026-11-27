@@ -59,6 +59,7 @@ details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue);min-height:32px;display:flex;align-items:center}
 .ppl{list-style:none;padding:0;margin:6px 0}.ppl li{padding:4px 0;border-bottom:1px solid var(--line);font-size:15px}
 .ppl li span{color:var(--mute);font-size:13.5px}
+.adv summary{color:var(--orange)}a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .links a{color:var(--blue);font-size:14px;margin-right:14px;display:inline-block;padding:4px 0}
 textarea{width:100%;min-height:60px;margin-top:6px}
 .empty{padding:40px 10px;text-align:center;color:var(--mute)}
@@ -109,17 +110,17 @@ const eur=v=>v==null?'montant inconnu':v>=1e6?(v/1e6).toLocaleString('fr-FR',{ma
 const fdate=d=>d?new Date(d+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let D={marches:[],permis:[],recurrents:{maitres_ouvrage:[],titulaires:[],acheteurs:[]},architectes:[],entreprises:{},meta:{}};
+let D={marches:[],permis:[],recurrents:{maitres_ouvrage:[],titulaires:[],acheteurs:[]},architectes:[],entreprises:{},meta:{},mairies:{}};
 let view=location.hash.slice(1)||'marches', sub='mo', shown=40;
-const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{});
+const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{}), ARCHI=store.get('exo-archi',{});
 const F=Object.assign({dist:1000,mmin:0,mmax:0,types:[],etapes:[],missions:[],travaux:'',ouverts:false,ecartes:false},store.get('exo-filtres',{}));
 const STATUTS=[['interessant','Intéressant'],['contacte','Contacté'],['ecarte','Écarté']];
 const MONTANTS=[[0,'Tous'],[500e3,'500 k€'],[1e6,'1 M€'],[2e6,'2 M€'],[4e6,'4 M€']];
 
 async function load(){
   const g=async n=>{try{const r=await fetch('data/'+n+'.json',{cache:'no-cache'});return r.ok?r.json():null}catch(e){return null}};
-  const [m,p,r,a,e,meta]=await Promise.all(['marches','permis','recurrents','architectes','entreprises','meta'].map(g));
-  D={marches:m||[],permis:p||[],recurrents:r||D.recurrents,architectes:a||[],entreprises:e||{},meta:meta||{}};
+  const [m,p,r,a,e,meta,mai]=await Promise.all(['marches','permis','recurrents','architectes','entreprises','meta','mairies'].map(g));
+  D={marches:m||[],permis:p||[],recurrents:r||D.recurrents,architectes:a||[],entreprises:e||{},meta:meta||{},mairies:mai||{}};
   const t=D.meta.genere_le?new Date(D.meta.genere_le):null;
   $('#maj').textContent=t?'Mis à jour le '+t.toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'}):'Première collecte en cours : reviens dans une heure.';
   if(D.meta.erreurs?.length) $('#warn').innerHTML='<div class="warn">Certaines sources n\'ont pas pu être mises à jour cette nuit : '+esc(D.meta.erreurs.slice(0,3).join(' · '))+'</div>';
@@ -167,7 +168,43 @@ function cardPermis(p){
     '<h3>'+esc(e?.nom||p.mo||'Maître d\'ouvrage')+'</h3><div class="who">'+esc([p.adresse,p.lieu].filter(Boolean).join(', '))+'</div>'+
     '<div class="meta"><b>'+(p.distance!=null?Math.round(p.distance)+' km':'')+'</b><b>≈ '+eur(p.montant)+'</b><span>'+(p.surface?esc(p.surface.toLocaleString('fr-FR'))+' m²':'')+(p.logements?' · '+p.logements+' logements':'')+'</span><span>'+esc(p.etape)+'</span><span>Accordé le '+esc(fdate(p.autorise))+'</span></div>'+
     '<details><summary>Maître d\'ouvrage et dirigeants</summary>'+entBlock(p.siren,'Maître d\'ouvrage')+
-    '<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. '+(p.architecte===true?'Un architecte est déclaré sur ce permis (nom non publié).':'Le nom de l’architecte n’est pas publié dans les données des permis.')+'</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
+    advanced(p)+'<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. '+(p.architecte===true?'Un architecte est déclaré sur ce permis (nom non publié).':'Le nom de l’architecte n’est pas publié dans les données des permis.')+'</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
+}
+const SIGN='Exolution – bureau d’études bâtiment (AMO, économie de la construction, OPC/DET)\ncontact@exolution.fr – 06 48 71 80 88';
+function mailText(p,full){
+  const e=ent(p.siren), ben=e?.nom||p.mo||'';
+  const objet='Demande de communication – permis de construire n° '+p.num;
+  const quoi=full?'une copie du dossier complet de ce permis (formulaire de demande, pièces graphiques et plans, arrêté de décision)':'une copie de l’arrêté accordant ce permis ainsi que du formulaire de demande (CERFA)';
+  const corps='Madame, Monsieur,\n\nEn application des articles L. 311-1 et suivants du code des relations entre le public et l’administration, je vous serais reconnaissant de bien vouloir me communiquer, de préférence par voie électronique, '+quoi+' :\n\n- Permis de construire n° '+p.num+'\n- Bénéficiaire : '+ben+'\n- Adresse du terrain : '+[p.adresse,p.lieu].filter(Boolean).join(', ')+'\n- Délivré le : '+fdate(p.autorise)+'\n\nCette demande vise notamment à connaître l’architecte auteur du projet. Je vous remercie par avance et reste à votre disposition pour tout complément.\n\nBien cordialement,\n\n'+SIGN;
+  return {objet,corps};
+}
+function advanced(p){
+  const mai=D.mairies?.[p.insee], id=p.id, e=ent(p.siren);
+  const q=s=>'https://www.google.com/search?q='+encodeURIComponent(s);
+  const adr=[p.adresse,p.lieu].filter(Boolean).join(', ');
+  const mails=[['leger','Demander l’arrêté et le formulaire'],['complet','Demander le dossier complet (plans)']].map(([k,l])=>{
+    const m=mailText(p,k==='complet');
+    const href=mai?.email?'mailto:'+mai.email+'?subject='+encodeURIComponent(m.objet)+'&body='+encodeURIComponent(m.corps):'';
+    return '<div class="acts"><b style="font-size:14px;flex:1 1 100%">'+l+'</b>'+(href?'<a class="btn" href="'+esc(href)+'">Ouvrir l’email</a>':'')+'<button class="btn" data-copy="'+esc(id)+'" data-full="'+(k==='complet')+'">Copier le texte</button></div>';
+  }).join('');
+  return '<details class="adv"><summary>Recherche avancée : trouver l’architecte</summary>'+
+    '<div class="meta"><b>Mairie</b> '+(mai?esc(mai.nom)+(mai.email?' · '+esc(mai.email):'')+(mai.tel?' · '+esc(mai.tel):''):'coordonnées non trouvées : voir annuaire service-public.fr')+'</div>'+
+    (mai?.tel?'<div class="links"><a href="tel:'+esc(mai.tel.replace(/\s/g,''))+'">Appeler la mairie</a>'+(String(mai.site||'').startsWith('http')?'<a href="'+esc(mai.site)+'" target="_blank" rel="noopener">Site de la mairie</a>':'')+'</div>':'')+
+    mails+
+    '<div class="links" style="margin-top:8px"><a href="'+q((e?.nom||p.mo)+' '+p.lieu+' architecte')+'" target="_blank" rel="noopener">Web : maître d’ouvrage + architecte</a>'+
+    '<a href="'+q('"'+(p.adresse||'')+'" '+p.lieu+' permis de construire')+'" target="_blank" rel="noopener">Web : adresse du chantier</a>'+
+    '<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(adr)+'" target="_blank" rel="noopener">Plan / vue de rue (panneau)</a>'+
+    '<a href="https://lannuaire.service-public.fr/recherche?whoWhat=mairie&where='+encodeURIComponent(p.lieu||'')+'" target="_blank" rel="noopener">Annuaire des mairies</a></div>'+
+    '<label class="meta" for="a-'+esc(id)+'" style="margin-top:8px">Architecte trouvé</label><input type="search" id="a-'+esc(id)+'" data-archi="'+esc(id)+'" value="'+esc(ARCHI[id]||'')+'" placeholder="Nom de l’architecte ou de l’agence" style="width:100%">'+
+    '<div class="archi-res" id="ar-'+esc(id)+'">'+archiRes(ARCHI[id])+'</div></details>';
+}
+function archiRes(name){
+  const n=norm(name).trim(); if(n.length<3) return '';
+  const words=n.split(/\s+/).filter(w=>w.length>2);
+  const hits=Object.values(D.entreprises).filter(e=>e&&e.naf==='71.11Z'&&words.every(w=>norm(e.nom).includes(w)||(e.dirigeants||[]).some(d=>norm(d.nom).includes(w)))).slice(0,3);
+  const q=encodeURIComponent(name);
+  return (hits.length?hits.map(e=>'<div style="margin-top:8px">'+entBlock(e.siren,'Agence')+'</div>').join(''):'<div class="meta">Pas dans les agences connues à moins de 100 km.</div>')+
+    '<div class="links"><a href="https://annuaire-entreprises.data.gouv.fr/rechercher?terme='+q+'" target="_blank" rel="noopener">Annuaire des entreprises</a><a href="https://www.google.com/search?q='+encodeURIComponent(name+' architecte ordre des architectes')+'" target="_blank" rel="noopener">Ordre des architectes / site</a></div>';
 }
 function cardMO(r){
   const e=ent(r.siren), id='M'+r.siren;
@@ -285,6 +322,9 @@ $('#filtres').addEventListener('click',e=>{
   shown=40;render();
 });
 $('#list').addEventListener('click',e=>{const b=e.target.closest('.st');if(!b)return;const id=b.dataset.id;ST[id]=ST[id]===b.dataset.s?undefined:b.dataset.s;if(!ST[id])delete ST[id];store.set('exo-suivi',ST);render()});
+$('#list').addEventListener('input',e=>{const t=e.target.closest('[data-archi]');if(!t)return;ARCHI[t.dataset.archi]=t.value;store.set('exo-archi',ARCHI);const r=document.getElementById('ar-'+t.dataset.archi);if(r)r.innerHTML=archiRes(t.value)});
+$('#list').addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;const p=D.permis.find(x=>x.id===b.dataset.copy);if(!p)return;const m=mailText(p,b.dataset.full==='true');const mai=D.mairies?.[p.insee];
+  try{await navigator.clipboard.writeText((mai?.email?'À : '+mai.email+'\n':'')+'Objet : '+m.objet+'\n\n'+m.corps);b.textContent='Copié ✓'}catch(err){b.textContent='Copie impossible'}setTimeout(()=>b.textContent='Copier le texte',2500)});
 $('#list').addEventListener('change',e=>{const t=e.target.closest('[data-note]');if(!t)return;NOTES[t.dataset.note]=t.value;store.set('exo-notes',NOTES)});
 $('#copy').addEventListener('click',async()=>{
   const L=items(),rows=[['Nom','Objet / type','Lieu','Distance km','Montant €','Étape','Dirigeants / décideur','Suivi']];

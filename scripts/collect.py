@@ -853,6 +853,7 @@ def traite_sitadel(path, kind):
             "logements": int(fnum(g(row, "nblog"))) or None,
             "montant": montant,
             "lieu": com["nom"] if com else g(row, "loc_ter"),
+            "insee": str(g(row, "comm")).zfill(5) if g(row, "comm") else None,
             "adresse": adr or None,
             "dep": com["dep"] if com else None,
             "distance": dkm,
@@ -921,6 +922,58 @@ def collect_architectes():
                 break
             page += 1
         log(f"  dép. {dep} : {len(ARCHIS)} cumulés")
+
+
+# ---------------------------------------------------------------- mairies
+ANNUAIRE = "https://api-lannuaire.service-public.fr/api/explore/v2.1/catalog/datasets/api-lannuaire-administration/exports/json"
+
+
+def _json(v):
+    if isinstance(v, str) and v[:1] in "[{":
+        try:
+            return json.loads(v)
+        except ValueError:
+            return v
+    return v
+
+
+@step("Mairies (annuaire de l'administration)")
+def collect_mairies():
+    besoins = {p["insee"] for p in PERMIS if p.get("insee")}
+    r = get(ANNUAIRE, params={"where": 'pivot like "mairie"', "limit": -1}, timeout=600)
+    if not r.ok:
+        log("  where refusé :", r.status_code, r.text[:300])
+        r = get(ANNUAIRE, params={"where": '"mairie"', "limit": -1}, timeout=600)
+    r.raise_for_status()
+    rows = r.json()
+    if rows:
+        log("  champs :", sorted(rows[0].keys()))
+    out = {}
+    for x in rows:
+        piv = _json(x.get("pivot")) or []
+        codes = []
+        for pv in piv if isinstance(piv, list) else [piv]:
+            if isinstance(pv, dict) and "mairie" == str(pv.get("type_service_local", "")).lower():
+                codes += as_list(pv.get("code_insee_commune"))
+        if not codes:
+            continue
+        nom = x.get("nom") or ""
+        if re.search(r"annexe|deleguee|déléguée|mairie de quartier", nom, re.I):
+            continue
+        tels = _json(x.get("telephone")) or []
+        tel = next((t.get("valeur") for t in tels if isinstance(t, dict) and t.get("valeur")), None) if isinstance(tels, list) else str(tels)
+        mail = (x.get("adresse_courriel") or "").split(";")[0].strip() or None
+        sites = _json(x.get("site_internet")) or []
+        site = next((t.get("valeur") for t in sites if isinstance(t, dict) and t.get("valeur")), None) if isinstance(sites, list) else None
+        adr = _json(x.get("adresse")) or []
+        a0 = adr[0] if isinstance(adr, list) and adr and isinstance(adr[0], dict) else {}
+        adresse = " ".join(filter(None, [a0.get("numero_voie"), a0.get("code_postal"), a0.get("nom_commune")])) or None
+        for c in codes:
+            c = str(c).zfill(5)
+            if c in besoins and c not in out:
+                out[c] = {"nom": nom, "email": mail, "tel": tel, "site": site, "adresse": adresse}
+    log(f"  {len(out)} mairies pour {len(besoins)} communes")
+    save("mairies.json", out)
 
 
 # ---------------------------------------------------------------- assemblage
@@ -1000,6 +1053,7 @@ def main():
     collect_attributions()
     collect_permis()
     collect_architectes()
+    collect_mairies()
     assemble()
     with open(ENT_CACHE_F, "w", encoding="utf-8") as f:
         json.dump(ENT, f, ensure_ascii=False)
