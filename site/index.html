@@ -59,7 +59,7 @@ details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue);min-height:32px;display:flex;align-items:center}
 .ppl{list-style:none;padding:0;margin:6px 0}.ppl li{padding:4px 0;border-bottom:1px solid var(--line);font-size:15px}
 .ppl li span{color:var(--mute);font-size:13.5px}
-.adv summary{color:var(--orange)}a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.adv>summary{background:var(--orange);color:#fff;border-radius:10px;padding:10px 14px;min-height:44px;margin:4px 0;list-style:none;font-family:Archivo,system-ui,sans-serif}.adv>summary::-webkit-details-marker{display:none}.adv>summary::before{content:'+ '}.adv[open]>summary::before{content:'– '}a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .links a{color:var(--blue);font-size:14px;margin-right:14px;display:inline-block;padding:4px 0}
 textarea{width:100%;min-height:60px;margin-top:6px}
 .empty{padding:40px 10px;text-align:center;color:var(--mute)}
@@ -137,9 +137,9 @@ function entLinks(e,s){
   return '<a href="https://annuaire-entreprises.data.gouv.fr/entreprise/'+esc(s)+'" target="_blank" rel="noopener">Fiche officielle</a>'+
     '<a href="https://www.google.com/search?q='+encodeURIComponent((e?.nom||'')+' '+(e?.commune||''))+'" target="_blank" rel="noopener">Site / téléphone</a>';
 }
-function entBlock(s,label){
+function entBlock(s,label,fallback){
   const e=ent(s);
-  return '<div><b>'+esc(label)+' : '+esc(e?.nom||s||'')+'</b>'+(e?.adresse?'<div class="meta">'+esc(e.adresse)+'</div>':'')+
+  return '<div><b>'+esc(label)+' : '+esc(e?.nom||fallback||s||'')+'</b>'+(e?.adresse?'<div class="meta">'+esc(e.adresse)+'</div>':'')+
     '<ul class="ppl">'+people(e)+'</ul><div class="links">'+entLinks(e,s)+'</div></div>';
 }
 function statusBar(id){
@@ -167,7 +167,7 @@ function cardPermis(p){
   return '<article class="card s-'+(ST[p.id]||'')+'"><div><span class="tag blue">'+esc(p.type)+'</span><span class="tag">'+(p.rehab?'Réhabilitation':'Neuf')+'</span>'+rec+'</div>'+
     '<h3>'+esc(e?.nom||p.mo||'Maître d\'ouvrage')+'</h3><div class="who">'+esc([p.adresse,p.lieu].filter(Boolean).join(', '))+'</div>'+
     '<div class="meta"><b>'+(p.distance!=null?Math.round(p.distance)+' km':'')+'</b><b>≈ '+eur(p.montant)+'</b><span>'+(p.surface?esc(p.surface.toLocaleString('fr-FR'))+' m²':'')+(p.logements?' · '+p.logements+' logements':'')+'</span><span>'+esc(p.etape)+'</span><span>Accordé le '+esc(fdate(p.autorise))+'</span></div>'+
-    '<details><summary>Maître d\'ouvrage et dirigeants</summary>'+entBlock(p.siren,'Maître d\'ouvrage')+
+    '<details><summary>Maître d\'ouvrage, dirigeants et architecte</summary>'+entBlock(p.siren,'Maître d\'ouvrage',p.mo)+
     advanced(p)+'<div class="meta">Permis n° '+esc(p.num)+' · '+esc(p.zone)+'. '+(p.architecte===true?'Un architecte est déclaré sur ce permis (nom non publié).':'Le nom de l’architecte n’est pas publié dans les données des permis.')+'</div>'+noteBox(p.id)+'</details>'+statusBar(p.id)+'</article>';
 }
 const SIGN='Exolution – bureau d’études bâtiment (AMO, économie de la construction, OPC/DET)\ncontact@exolution.fr – 06 48 71 80 88';
