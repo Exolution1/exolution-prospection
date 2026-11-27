@@ -63,6 +63,7 @@ details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--blue);min-height:32px;display:flex;align-items:center}
 .ppl{list-style:none;padding:0;margin:6px 0}.ppl li{padding:4px 0;border-bottom:1px solid var(--line);font-size:15px}
 .ppl li span{color:var(--mute);font-size:13.5px}
+.confirm{flex:1 1 100%;font-weight:600;font-size:15px}.btn.danger{background:#c62828;border-color:#c62828;color:#fff}
 .adv>summary{background:var(--orange);color:#fff;border-radius:10px;padding:10px 14px;min-height:44px;margin:4px 0;list-style:none;font-family:Archivo,system-ui,sans-serif}.adv>summary::-webkit-details-marker{display:none}.adv>summary::before{content:'+ '}.adv[open]>summary::before{content:'– '}a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .links a{color:var(--blue);font-size:14px;margin-right:14px;display:inline-block;padding:4px 0}
 textarea{width:100%;min-height:60px;margin-top:6px}
@@ -115,7 +116,8 @@ const fdate=d=>d?new Date(d+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',
 const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let D={marches:[],permis:[],recurrents:{maitres_ouvrage:[],titulaires:[],acheteurs:[]},architectes:[],entreprises:{},meta:{},mairies:{}};
-let view=location.hash.slice(1)||'marches', sub='mo', shown=40;
+let view=location.hash.slice(1)||'marches', sub=view==='suivi'?'tous':'mo', shown=40;
+if(!['marches','permis','recurrents','architectes','suivi'].includes(view)){view='marches'}
 const ST=store.get('exo-suivi',{}), NOTES=store.get('exo-notes',{}), ARCHI=store.get('exo-archi',{});
 const F=Object.assign({dist:1000,mmin:0,mmax:0,types:[],etapes:[],missions:[],travaux:'',ouverts:false,ecartes:false},store.get('exo-filtres',{}));
 const STATUTS=[['interessant','Intéressant'],['contacte','Contacté'],['ecarte','Écarté']];
@@ -282,7 +284,7 @@ function items(){
   else if(view==='architectes') L=D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi,score:x.marches*10-x.distance/10,date:x.derniere||''}));
   else { // suivi
     const all=[...D.marches.map(x=>({x,id:x.id,card:cardMarche})),...D.permis.map(x=>({x,id:x.id,card:cardPermis})),...D.recurrents.maitres_ouvrage.map(x=>({x,id:'M'+x.siren,card:()=>cardMO(x)})),...D.recurrents.titulaires.map(x=>({x,id:'T'+norm(x.nom).replace(/\W+/g,'-'),card:cardTit})),...D.recurrents.acheteurs.map(x=>({x,id:'A'+norm(x.nom).replace(/\W+/g,'-'),card:cardAch})),...D.architectes.map(x=>({x,id:'R'+x.siren,card:cardArchi}))];
-    L=all.filter(i=>ST[i.id]&&(sub==='tous'||ST[i.id]===sub)).map(i=>({...i,score:ST[i.id]==='interessant'?2:ST[i.id]==='contacte'?1:0,date:''}));
+    L=all.filter(i=>ST[i.id]&&ST[i.id]!=='ecarte'&&(sub==='tous'||ST[i.id]===sub)).map(i=>({...i,score:ST[i.id]==='interessant'?2:ST[i.id]==='contacte'?1:0,date:''}));
   }
   L=L.filter(i=>keep(i.x,i.id));
   const by={pert:(a,b)=>b.score-a.score,dist:(a,b)=>(a.x.distance??9e9)-(b.x.distance??9e9),mont:(a,b)=>(b.x.montant??-1)-(a.x.montant??-1),date:(a,b)=>String(b.date).localeCompare(String(a.date))}[t];
@@ -291,7 +293,7 @@ function items(){
 function drawSub(){
   let h='';
   if(view==='recurrents') h=[['mo','Maîtres d\'ouvrage privés'],['tit','Architectes (marchés gagnés)'],['ach','Acheteurs publics']].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
-  if(view==='suivi') h=[['tous','Tout'],...STATUTS].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
+  if(view==='suivi') h=[['tous','Tout'],...STATUTS.filter(s=>s[0]!=='ecarte')].map(([k,l])=>'<button class="btn'+(sub===k?' on':'')+'" data-sub="'+k+'">'+l+'</button>').join('');
   $('#sub').innerHTML=h;
 }
 function render(){
@@ -325,7 +327,14 @@ $('#filtres').addEventListener('click',e=>{
   else return;
   shown=40;render();
 });
-$('#list').addEventListener('click',e=>{const b=e.target.closest('.st');if(!b)return;const id=b.dataset.id;ST[id]=ST[id]===b.dataset.s?undefined:b.dataset.s;if(!ST[id])delete ST[id];store.set('exo-suivi',ST);render()});
+$('#list').addEventListener('click',e=>{
+  const ok=e.target.closest('[data-confirm]');if(ok){ST[ok.dataset.confirm]='ecarte';store.set('exo-suivi',ST);render();return}
+  if(e.target.closest('[data-cancel]')){render();return}
+  const b=e.target.closest('.st');if(!b)return;const id=b.dataset.id;
+  if(view==='suivi'&&b.dataset.s==='ecarte'&&ST[id]!=='ecarte'){
+    b.closest('.acts').innerHTML='<span class="confirm">Écarter ce projet ? Il disparaîtra de Mon suivi.</span><button class="btn danger" data-confirm="'+esc(id)+'">Oui, écarter</button><button class="btn" data-cancel>Annuler</button>';
+    return;
+  }ST[id]=ST[id]===b.dataset.s?undefined:b.dataset.s;if(!ST[id])delete ST[id];store.set('exo-suivi',ST);render()});
 $('#list').addEventListener('input',e=>{const t=e.target.closest('[data-archi]');if(!t)return;ARCHI[t.dataset.archi]=t.value;store.set('exo-archi',ARCHI);const r=document.getElementById('ar-'+t.dataset.archi);if(r)r.innerHTML=archiRes(t.value)});
 $('#list').addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;const p=D.permis.find(x=>x.id===b.dataset.copy);if(!p)return;const m=mailText(p,b.dataset.full==='true');const mai=D.mairies?.[p.insee];
   try{await navigator.clipboard.writeText((mai?.email?'À : '+mai.email+'\n':'')+'Objet : '+m.objet+'\n\n'+m.corps);b.textContent='Copié ✓'}catch(err){b.textContent='Copie impossible'}setTimeout(()=>b.textContent='Copier le texte',2500)});
@@ -337,7 +346,7 @@ $('#copy').addEventListener('click',async()=>{
   try{await navigator.clipboard.writeText(txt);$('#copy').textContent='Copié ('+L.length+') ✓'}catch(err){$('#copy').textContent='Copie impossible'}
   setTimeout(()=>$('#copy').textContent='Copier la liste',2500);
 });
-window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==view){view=v;render()}});
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==view&&['marches','permis','recurrents','architectes','suivi'].includes(v)){view=v;sub=v==='suivi'?'tous':'mo';shown=40;render()}});
 load();
 }
 </script>
